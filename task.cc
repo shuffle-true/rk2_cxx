@@ -6,36 +6,34 @@
 class PingPong
 {
 public:
-	static constexpr std::size_t MAX = 3;
+    static constexpr std::size_t MAX = 3;
 
-	void ping()
-	{
-    	std::unique_lock<std::mutex> lock(m_);
-    	while (count_.load() < MAX)
-    	{
-        	std::cout << "Ping" << std::endl;
-        	count_++;
-        	cv_.notify_all();
-        	cv_.wait(lock);
-    	}
- 	}
+    void ping()
+    {
+        std::unique_lock<std::mutex> lock(m_);
+        for (size_t i = 0; i < MAX; ++i) {
+            cv_.wait(lock, [this] { return !pause_; });
+            std::cout << "Ping" << std::endl;
+            pause_ = !pause_;
+            cv_.notify_one();
+        }
+    }
 
-	void pong()
-	{
-    	std::unique_lock<std::mutex> lock(m_);
-    	while (count_.load() < MAX)
-    	{
-        	std::cout << "Pong" << std::endl;
-        	count_++;
-        	cv_.notify_all();
-        	cv_.wait(lock);
-    	}
-	}
+    void pong()
+    {
+        std::unique_lock<std::mutex> lock(m_);
+        for (size_t i = 0; i < MAX; ++i) {
+            cv_.wait(lock, [this] { return pause_; });
+            std::cout << "Pong" << std::endl;
+            pause_ = !pause_;
+            cv_.notify_one();
+        }
+    }
 
 private:
-	std::atomic<std::size_t> count_ = 0;
-	std::mutex m_;
-	std::condition_variable cv_;
+    bool pause_ = false;
+    std::mutex m_;
+    std::condition_variable cv_;
 };
 
 int main()
